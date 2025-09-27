@@ -1,7 +1,4 @@
-/*
-server.js - Servidor WebSocket para Render
-Roteia mensagens entre PC e Controle (mesma sessionId)
-*/
+// server.js - signaling server para Render (Node ESM)
 import express from "express";
 import http from "http";
 import { WebSocketServer } from "ws";
@@ -12,7 +9,7 @@ app.get("/", (req,res) => res.send("Signaling server running"));
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
-server.listen(PORT, () => console.log("Servidor rodando na porta " + PORT));
+server.listen(PORT, ()=> console.log("Servidor rodando na porta", PORT));
 
 const wss = new WebSocketServer({ server });
 const clients = new Map(); // ws -> meta
@@ -32,14 +29,16 @@ wss.on("connection", (ws) => {
         ws.send(JSON.stringify({ type: "registered", id: ws.id, sessionId: meta.sessionId }));
         return;
       }
-      // retransmitir mensagem para todos da mesma sessionId
+      // route to clients in same sessionId
       for(const [client, meta] of clients.entries()){
         if(client === ws) continue;
         if(meta.sessionId && meta.sessionId === msg.sessionId){
           try { client.send(JSON.stringify(msg)); } catch(e){ console.warn("send fail", e); }
         }
       }
-    } catch(e){ console.error("invalid message", e); }
+    } catch(e){
+      console.error("invalid message", e);
+    }
   });
   ws.on("close", ()=> clients.delete(ws));
 });
