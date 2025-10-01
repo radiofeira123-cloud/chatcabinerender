@@ -1,57 +1,56 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json({ limit: "50mb" }));
-app.use(express.static(path.join(__dirname, "public")));
 
-// armazenamento em memória (cada sessão guarda suas fotos base64)
+// Caminho para frontend
+const frontendPath = path.join(__dirname, "../vaiporfavor");
+
+// Rotas HTML
+app.get("/", (req, res) => res.sendFile(path.join(frontendPath, "index.html")));
+app.get("/celular.html", (req, res) => res.sendFile(path.join(frontendPath, "celular.html")));
+app.get("/visualizador.html", (req, res) => res.sendFile(path.join(frontendPath, "visualizador.html")));
+
+// Servir assets (JS, CSS, imagens)
+app.use("/assets", express.static(frontendPath));
+
+// API para visualizador buscar fotos
 const sessions = {};
 
-// rota API para o visualizador puxar fotos
 app.get("/api/session/:id", (req, res) => {
   const { id } = req.params;
-  if (!sessions[id]) {
-    return res.status(404).json({ error: "Sessão não encontrada" });
-  }
+  if (!sessions[id]) return res.status(404).json({ error: "Sessão não encontrada" });
   res.json({ photos: sessions[id].photos });
 });
 
-// socket.io
+// Socket.IO
 io.on("connection", socket => {
   console.log("📲 Novo cliente conectado");
 
-  // quando o celular manda uma foto
   socket.on("final_photo", data => {
     let { sessionId, photo } = data;
-    if (!sessionId) {
-      sessionId = Date.now().toString();
-    }
+    if (!sessionId) sessionId = Date.now().toString();
 
-    if (!sessions[sessionId]) {
-      sessions[sessionId] = { photos: [] };
-    }
-
+    if (!sessions[sessionId]) sessions[sessionId] = { photos: [] };
     sessions[sessionId].photos.push(photo);
-    console.log(`📸 Foto recebida na sessão ${sessionId}`);
 
-    // envia para os PCs conectados
     io.emit("final_photo", { sessionId, photo });
   });
 
-  // operador finaliza sessão
   socket.on("finalizar_sessao", sessionId => {
     delete sessions[sessionId];
-    console.log(`🗑️ Sessão ${sessionId} finalizada`);
   });
 });
 
-const PORT = 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
