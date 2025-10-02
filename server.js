@@ -13,10 +13,10 @@ const io = new Server(server);
 
 app.use(express.json({ limit: "50mb" }));
 
-// Caminho para frontend
+// Caminho para o frontend (repositório separado)
 const frontendPath = path.join(__dirname, "../vaiporfavor");
 
-// Rotas HTML
+// Servir HTMLs
 app.get("/", (req, res) => res.sendFile(path.join(frontendPath, "index.html")));
 app.get("/celular.html", (req, res) => res.sendFile(path.join(frontendPath, "celular.html")));
 app.get("/visualizador.html", (req, res) => res.sendFile(path.join(frontendPath, "visualizador.html")));
@@ -44,11 +44,13 @@ io.on("connection", socket => {
     if (!sessions[sessionId]) sessions[sessionId] = { photos: [] };
     sessions[sessionId].photos.push(photo);
 
+    // envia para todos os clientes conectados
     io.emit("final_photo", { sessionId, photo });
   });
 
   socket.on("finalizar_sessao", sessionId => {
     delete sessions[sessionId];
+    console.log(`🗑️ Sessão ${sessionId} finalizada`);
   });
 });
 
