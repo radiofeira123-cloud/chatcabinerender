@@ -13,20 +13,19 @@ const io = new Server(server);
 
 app.use(express.json({ limit: "50mb" }));
 
-// Caminho para o frontend (repositório separado)
+// Caminho para o frontend
 const frontendPath = path.join(__dirname, "../vaiporfavor");
 
-// Servir HTMLs
+// Servir HTMLs e assets
 app.get("/", (req, res) => res.sendFile(path.join(frontendPath, "index.html")));
 app.get("/celular.html", (req, res) => res.sendFile(path.join(frontendPath, "celular.html")));
 app.get("/visualizador.html", (req, res) => res.sendFile(path.join(frontendPath, "visualizador.html")));
-
-// Servir assets (JS, CSS, imagens)
 app.use("/assets", express.static(frontendPath));
 
-// API para visualizador buscar fotos
+// Armazenamento de sessões
 const sessions = {};
 
+// API para visualizador puxar fotos
 app.get("/api/session/:id", (req, res) => {
   const { id } = req.params;
   if (!sessions[id]) return res.status(404).json({ error: "Sessão não encontrada" });
@@ -44,7 +43,6 @@ io.on("connection", socket => {
     if (!sessions[sessionId]) sessions[sessionId] = { photos: [] };
     sessions[sessionId].photos.push(photo);
 
-    // envia para todos os clientes conectados
     io.emit("final_photo", { sessionId, photo });
   });
 
